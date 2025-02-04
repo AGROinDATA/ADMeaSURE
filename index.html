@@ -3,243 +3,140 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Digital Measure - AGROinDATA</title>
+    <title>AD MeaSURE 1.3</title>
     <style>
         body {
-            margin: 0;
-            padding: 0;
-            font-family: Arial, sans-serif;
             background: linear-gradient(darkgreen, green);
             color: white;
             text-align: center;
-        }
-        h1 {
-            font-size: 2em;
-            font-weight: bold;
-            margin-top: 20px;
+            font-family: Arial, sans-serif;
         }
         .container {
-            background-color: #333;
+            background: black;
             padding: 20px;
-            max-width: 900px;
-            margin: 20px auto;
             border-radius: 10px;
+            max-width: 800px;
+            margin: auto;
         }
         img {
             display: block;
-            margin: 20px auto;
+            margin: 10px auto;
         }
         a {
             color: white;
             font-weight: bold;
             text-decoration: none;
         }
-        a:hover {
-            text-decoration: underline;
+        canvas {
+            display: block;
+            max-width: 100%;
+            margin: auto;
         }
         button {
             margin: 10px;
             padding: 10px;
-            background-color: #ffcc00;
+            background: orange;
             border: none;
-            font-size: 16px;
+            color: black;
+            font-weight: bold;
             cursor: pointer;
         }
-        button:hover {
-            background-color: #ff9900;
-        }
-        canvas {
-            display: block;
-            margin: 20px auto;
-            border: 1px solid #fff;
-        }
-        #measurementSummary {
+        footer {
             margin-top: 20px;
-            text-align: left;
-        }
-        .note {
-            margin-top: 20px;
-            font-size: 1.2em;
-        }
-        #logoOverlay {
-            position: absolute;
-            bottom: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 50px;
-            height: 50px;
-        }
-        .white-background {
-            background-color: white;
-            color: black;
-            padding: 2px;
+            font-size: 12px;
         }
     </style>
 </head>
 <body>
-
-    <h1>Digital measure</h1>
+    <h1>AD MeaSURE 1.3</h1>
     <div class="container">
-        <img src="https://agroindata.com/images/logo.jpg" alt="AGROinDATA Logo" width="150">
-        <a href="https://www.agroindata.com">www.agroindata.com</a>
-        <p>
-            Instructions: <br>
-            1.- Select an image <br>
-            2.- Measure the distance on the rule <br>
-            3.- Adjust the pixel in 3 cm, reset and measure again to leave records and make data available to whoever needs it, courtesy of AGROinDATA. <br>
-            For any customization demo or other requests, please contact us at <a href="mailto:agroindata@gmail.com">agroindata@gmail.com</a> <br>
-            For more info visit <a href="https://www.agroindata.com">www.agroindata.com</a>
-        </p>
-
-        <input type="file" id="imageUpload" accept="image/*">
-        <button id="takePhoto">Take Photo</button><br>
-
+        <img src="https://www.dropbox.com/scl/fi/7ye13ptxczfybxhev0ozo/enhanced_logo-1.jpg?rlkey=kqppdd9ppd4dqgaaqr81fwjak&st=0shocxvr&raw=1" width="150" height="150" alt="Logo">
+        <p><a href="https://www.agroindata.com/">www.agroindata.com</a></p>
+        <p><strong>Instructions:</strong></p>
+        <p>1. Take an image with a measure ruler.<br>
+           2. Count 3 cm in the ruler and check how many pixels there are.<br>
+           3. Add the number of pixels in the box below and start measuring.<br>
+           4. Take a screenshot to share and save the file.</p>
+        <p>For any customization, demo, or other requests, please contact us at agroindata@gmail.com</p>
+        <input type="file" id="upload" accept="image/*">
+        <button onclick="openCamera()">Take a Photo</button>
         <canvas id="canvas"></canvas>
-        <img id="logoOverlay" src="https://agroindata.com/images/logo.jpg" style="display:none;">
-        
-        <div id="measurementSummary"></div>
-        
-        <button id="resetButton">Reset</button>
-        <button id="undoButton">Undo</button>
-        <button id="redoButton">Redo</button><br>
-        
-        <input type="number" id="pixelPerCm" placeholder="Pixels in 3 cm" style="padding: 10px; width: 200px;"><br>
-        <button id="screenshotButton">Take Screenshot</button>
+        <p>Add here the number of pixels in 3 cm: <input type="number" id="pixelPerCm"></p>
+        <button onclick="undoLast()">UNDO</button>
+        <button onclick="confirmRefresh()">Refresh Page</button>
     </div>
-
-    <p class="note">For optimal results, we recommend practicing before use. Please be aware that this tool may have limitations, particularly when the reference scale is not positioned at the same level as the object being measured. We are actively working on enhancements to improve its accuracy and performance. Developed by Christian Stange Marcus, AGROinDATA, powered by AI. For more information, contact us at <a href="mailto:agroindata@gmail.com">agroindata@gmail.com</a></p>
-
+    <footer>
+        <p>Note: Practice before use. We are currently working to improve this tool. Created by Christian Stange Marcus, AGROinDATA with AI. For more information, contact us directly at agroindata@gmail.com.</p>
+    </footer>
     <script>
-        const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
+        let canvas = document.getElementById('canvas');
+        let ctx = canvas.getContext('2d');
         let img = new Image();
         let points = [];
-        let lines = [];
-        let undoStack = [];
-        let redoStack = [];
+        let pixelPerCm = 0;
 
-        // Image upload
-        document.getElementById('imageUpload').addEventListener('change', function(event) {
-            const file = event.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    img.src = e.target.result;
-                    img.onload = function() {
-                        canvas.width = img.width;
-                        canvas.height = img.height;
-                        ctx.drawImage(img, 0, 0);
-                        document.getElementById('logoOverlay').style.display = 'block';
-                    };
+        document.getElementById('upload').addEventListener('change', function(e) {
+            let file = e.target.files[0];
+            let reader = new FileReader();
+            reader.onload = function(event) {
+                img.onload = function() {
+                    canvas.width = img.width / 2;
+                    canvas.height = img.height / 2;
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    overlayLogo();
                 };
-                reader.readAsDataURL(file);
-            }
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
         });
 
-        // Click event for placing points and drawing lines
+        function overlayLogo() {
+            let logo = new Image();
+            logo.src = "https://www.dropbox.com/scl/fi/7ye13ptxczfybxhev0ozo/enhanced_logo-1.jpg?rlkey=kqppdd9ppd4dqgaaqr81fwjak&st=0shocxvr&raw=1";
+            logo.onload = function() {
+                ctx.drawImage(logo, canvas.width / 2 - 25, canvas.height - 50, 50, 50);
+            };
+        }
+
         canvas.addEventListener('click', function(event) {
-            const rect = canvas.getBoundingClientRect();
-            const x = event.clientX - rect.left;
-            const y = event.clientY - rect.top;
-            drawCircle(x, y);
+            if (pixelPerCm === 0) {
+                pixelPerCm = document.getElementById('pixelPerCm').value / 3;
+            }
+            let x = event.offsetX;
+            let y = event.offsetY;
             points.push({ x, y });
+            ctx.fillStyle = 'orange';
+            ctx.beginPath();
+            ctx.arc(x, y, 5, 0, 2 * Math.PI);
+            ctx.fill();
+
             if (points.length === 2) {
-                drawLine(points[0], points[1]);
-                const dist = calculateDistance(points[0], points[1]);
-                const cmDist = dist / (getPixelsPerCm() / 3); // Pixels to cm conversion
-                drawTextOnLine(dist.toFixed(1), cmDist.toFixed(2), points[0], points[1]);
-                document.getElementById('measurementSummary').innerHTML += `Line: ${dist.toFixed(1)}px (${cmDist.toFixed(2)}cm)<br>`;
-                undoStack.push({ action: 'draw', points: [...points] });
+                ctx.strokeStyle = 'yellow';
+                ctx.beginPath();
+                ctx.moveTo(points[0].x, points[0].y);
+                ctx.lineTo(points[1].x, points[1].y);
+                ctx.stroke();
+                let pixelDistance = Math.sqrt(Math.pow(points[1].x - points[0].x, 2) + Math.pow(points[1].y - points[0].y, 2));
+                let cmDistance = (pixelDistance / pixelPerCm).toFixed(2);
+                ctx.fillStyle = 'white';
+                ctx.fillText(`${pixelDistance.toFixed(2)} px / ${cmDistance} cm`, (points[0].x + points[1].x) / 2, (points[0].y + points[1].y) / 2);
                 points = [];
             }
         });
 
-        // Drawing functions
-        function drawCircle(x, y) {
-            ctx.beginPath();
-            ctx.arc(x, y, 5, 0, 2 * Math.PI, false);
-            ctx.fillStyle = 'yellow';
-            ctx.strokeStyle = 'black';
-            ctx.lineWidth = 2;
-            ctx.fill();
-            ctx.stroke();
+        function undoLast() {
+            location.reload();
         }
 
-        function drawLine(start, end) {
-            ctx.beginPath();
-            ctx.moveTo(start.x, start.y);
-            ctx.lineTo(end.x, end.y);
-            ctx.strokeStyle = 'orange';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-            lines.push({ start, end });
-        }
-
-        function drawTextOnLine(pixels, cm, start, end) {
-            const midX = (start.x + end.x) / 2;
-            const midY = (start.y + end.y) / 2;
-            ctx.fillStyle = 'black';
-            ctx.font = "12px Arial";
-            ctx.fillText(`${pixels}px / ${cm}cm`, midX, midY);
-            ctx.fillStyle = "white";
-        }
-
-        // Distance calculation
-        function calculateDistance(start, end) {
-            const dx = end.x - start.x;
-            const dy = end.y - start.y;
-            return Math.sqrt(dx * dx + dy * dy);
-        }
-
-        function getPixelsPerCm() {
-            return document.getElementById('pixelPerCm').value || 100; // Default value
-        }
-
-        // Reset functionality
-        document.getElementById('resetButton').addEventListener('click', function() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(img, 0, 0);
-            lines = [];
-            points = [];
-            undoStack = [];
-            redoStack = [];
-            document.getElementById('measurementSummary').innerHTML = '';
-        });
-
-        // Undo/Redo functionality
-        document.getElementById('undoButton').addEventListener('click', function() {
-            if (undoStack.length > 0) {
-                const lastAction = undoStack.pop();
-                redoStack.push(lastAction);
-                redraw();
+        function confirmRefresh() {
+            if (confirm("Are you sure that you want to refresh? You might lose all the counts made.")) {
+                location.reload();
             }
-        });
-
-        document.getElementById('redoButton').addEventListener('click', function() {
-            if (redoStack.length > 0) {
-                const lastAction = redoStack.pop();
-                undoStack.push(lastAction);
-                if (lastAction.action === 'draw') {
-                    drawLine(lastAction.points[0], lastAction.points[1]);
-                }
-            }
-        });
-
-        // Redraw canvas after undo/redo
-        function redraw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(img, 0, 0);
-            lines.forEach(line => drawLine(line.start, line.end));
         }
 
-        // Screenshot functionality
-        document.getElementById('screenshotButton').addEventListener('click', function() {
-            const link = document.createElement('a');
-            link.download = 'screenshot.jpg';
-            link.href = canvas.toDataURL('image/jpeg', 1.0);
-            link.click();
-        });
+        function openCamera() {
+            document.getElementById('upload').click();
+        }
     </script>
-
 </body>
 </html>
